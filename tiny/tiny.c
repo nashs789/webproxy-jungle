@@ -1,11 +1,3 @@
-/* $begin tinymain */
-/*
- * tiny.c - A simple, iterative HTTP/1.0 Web server that uses the 
- *     GET method to serve static and dynamic content.
- *
- * Updated 11/2019 droh 
- *   - Fixed sprintf() aliasing issue in serve_static(), and clienterror().
- */
 #include "csapp.h"
 
 void doit(int fd);
@@ -243,3 +235,53 @@ void echo(int connfd){
         Rio_writen(connfd,buf,n);
     }
 }
+
+/*
+    ⚙︎ function   : memcpy(destination, source, size_t)
+    ⚙︎ Header     : <string.h>
+    ⚙︎ parameter  : - destination: 복사할 데이터가 위치할 메모리주소를 가르키는 포인터
+                   - source     : 복사할 데이터가 위치한 메모리주소를 가르키는 포인터
+                   - size_t     : 복사할 데이터의 길이 (Bytes)
+    ⚙︎ description: source에 있는 원본 데이터를 size_t만큼 복사해 destination 주소로 복사
+    ⚙︎ caution    : size_t 가 char* 인 경우에는 문자열의 끝을 알리는 "\0" 까지 복사해야 하기 때문에 길이 + 1을 해준다.
+                   desination과 source의 메모리 주소는 겹치면 안된다.
+
+    ⚙︎ Function    : strstr
+    ⚙︎ Arguments   : const char *haystack, const char *needle
+    ⚙︎ Return      : char *
+    ⚙︎ Description : 주어진 문자열에서 특정 부분 문자열의 위치를 찾는 함수
+                    - haystack: 검색 대상이 되는 문자열
+                    - needle  : 찾고자 하는 부분 문자열
+
+    ⚙︎ Function    : index
+    ⚙︎ Arguments   : const char *s, int c
+    ⚙︎ Return      : char *
+    ⚙︎ Description : 문자열에서 특정 문자의 첫 번째 등장 위치를 찾는 함수
+                    - s: 검색할 문자열
+                    - c: 검색할 문자
+
+    ⚙︎ Function    : strcasecmp
+    ⚙︎ Arguments   : const char *str1, const char *str2
+    ⚙︎ Return      : int
+    ⚙︎ Description : 문자열을 대소문자 구분 없이 비교하는 함수입니다.
+                    == 0: 동일한 문자
+                    > 0: str1이 사전적으로 뒤
+                    < 0: str1이 사전적으로 앞 
+
+    ⚙︎ Function    : stat
+    ⚙︎ Arguments   : const char *path, struct stat *buf
+    ⚙︎ Return      : int
+    ⚙︎ Description : 파일의 메타데이터(파일 크기, 소유자, 권한 등)를 가져오는 함수
+                    == 0 : 파일을 찾음
+                    == -1: 파일을 찾지 못함
+
+    ⚙︎ Function    : pthread_create
+    ⚙︎ Header      : <pthread.h>
+    ⚙︎ Arguments   : pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg
+    ⚙︎ Return      : int
+    ⚙︎ Description : 병렬로 실행할 코드 블록을 다른 스레드에서 실행
+                  - thread: 새로 생성된 스레드의 식별자를 저장할 포인터 (제어 및 추적)
+                  - attr: 스레드의 속성을 지정하는데 사용되는 pthread_attr_t 타입의 포인터 (NULL 허용)
+                  - start_routine: 새로운 스레드에서 실행할 함수를 가리키는 포인터로 스레드가 시작될 때 호출
+                  - arg: start_routine 함수에 전달될 인수를 가리키는 포인터
+*/
