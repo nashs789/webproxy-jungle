@@ -1,3 +1,11 @@
+/*
+    Tiny Server 과제 내용
+    1. 11.6c -
+    2. 11.7  -
+    3. 11.9  -
+    4. 11.10 -
+    5. 11.11 -
+*/
 #include "csapp.h"
 
 void doit(int fd);
@@ -13,7 +21,7 @@ int main(int argc, char **argv) {
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
-
+    
     if(argc != 2){
 	    fprintf(stderr, "usage: %s <port>\n", argv[0]);
 	    exit(1);
@@ -31,9 +39,6 @@ int main(int argc, char **argv) {
     }
 }
 
-/*
- * doit - handle one HTTP request/response transaction
- */
 void doit(int fd) {
     int is_static;
     struct stat sbuf;
@@ -41,15 +46,13 @@ void doit(int fd) {
     char filename[MAXLINE], cgiargs[MAXLINE];
     rio_t rio;
 
-    /* Read request line and headers */
+    // Client로 부터 받은 Request 앍오드림
     Rio_readinitb(&rio, fd);
-    if(!Rio_readlineb(&rio, buf, MAXLINE)) {
-        return;
-    }
-
-    printf("%s", buf);
+    Rio_readlineb(&rio, buf, MAXLINE);
     sscanf(buf, "%s %s %s", method, uri, version);
-    if(!(strcasecmp(method, "GET")==0||strcasecmp(method,"HEAD")==0)) {
+
+    // Tiny Server는 HTTP Method GET, HEAD만 지원한다.
+    if(!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "HEAD") == 0)) {
         clienterror(fd, method, "501", "Not Implemented", "Tiny does not implement this method");
         return;
     }
@@ -62,14 +65,14 @@ void doit(int fd) {
     }
 
     if(is_static) { /* Serve static content */          
-	    if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
+	    if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {    // 일반 파일(파일 모드) && 읽기 권한 
 	        clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
 	        return;
 	    }
 
 	    serve_static(fd, filename, sbuf.st_size,method);
     } else { /* Serve dynamic content */
-	    if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
+	    if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {    // 일반 파일(파일 모드) && 실행 권한 
 	        clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run the CGI program");
 	        return;
 	    }
@@ -77,9 +80,6 @@ void doit(int fd) {
     }
 }
 
-/*
- * read_requesthdrs - read HTTP request headers
- */
 void read_requesthdrs(rio_t *rp) {
     char buf[MAXLINE];
 
@@ -94,31 +94,29 @@ void read_requesthdrs(rio_t *rp) {
     return;
 }
 
-/*
- * parse_uri - parse URI into filename and CGI args
- *             return 0 if dynamic content, 1 if static
- */
 int parse_uri(char *uri, char *filename, char *cgiargs) {
     char *ptr;
 
-    if (!strstr(uri, "cgi-bin")) {  /* Static content */
-	    strcpy(cgiargs, "");
-	    strcpy(filename, ".");
-	    strcat(filename, uri);
+    // path: cgi-bin/{????} 밑에 있는 컨텐츠는 동적 컨텐츠
+    if(!strstr(uri, "cgi-bin")) {     // 정적 컨텐츠인 케이스
+	    strcpy(cgiargs, "");          // 파라미터 없음
+	    strcpy(filename, ".");        // 요청한 filename이 현재 디렉토리(./)를 찾을 수 있도록 '.' 추가
+	    strcat(filename, uri);        // ex) {filename}/{index.html}
 
-	    if (uri[strlen(uri)-1] == '/'){
+        // root인 경우 home.html 파일을 내려준다.
+	    if (uri[strlen(uri)-1] == '/'){     
 	        strcat(filename, "home.html");
         }
 
 	    return 1;
-    } else {  /* Dynamic content */
-	    ptr = index(uri, '?');
+    } else {                          // 동적 컨텐츠인 케이스 
+	    ptr = index(uri, '?');        // Query String을 구분짓는 '?' 기준으로 포인터를 갖는다
 
-	    if(ptr){
-	        strcpy(cgiargs, ptr+1);
+	    if(ptr){                      // Query String이 있는 케이스
+	        strcpy(cgiargs, ptr + 1); // 파라미터 값 복사
 	        *ptr = '\0';
 	    } else {
-	        strcpy(cgiargs, "");
+	        strcpy(cgiargs, "");      // 파라미터 없음
         }
 
         strcpy(filename, ".");
@@ -127,19 +125,17 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
     }
 }
 
-/*
- * serve_static - copy a file back to the client 
- */
 void serve_static(int fd, char *filename, int filesize, char *method) {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF], *fbuf;
 
     get_filetype(filename, filetype);
+    // Client에게 보내는 Response Header(헤더 마지막 부분은 \r\n 일 것)
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
-    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype); // 빈 줄 한 개가 헤더를 종료하고 있음
+    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
     Rio_writen(fd, buf, strlen(buf));
     printf("Response headers:\n");
     printf("%s",buf);
@@ -147,6 +143,7 @@ void serve_static(int fd, char *filename, int filesize, char *method) {
     if(strcasecmp(method,"HEAD")==0){
         return;
     }
+
     srcfd = Open(filename, O_RDONLY, 0);
     srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
     Close(srcfd);     
@@ -160,9 +157,6 @@ void serve_static(int fd, char *filename, int filesize, char *method) {
     // free(fbuf);
 }
 
-/*
- * get_filetype - derive file type from file name
- */
 void get_filetype(char *filename, char *filetype) 
 {
     if (strstr(filename, ".html"))
@@ -179,30 +173,27 @@ void get_filetype(char *filename, char *filetype)
 	    strcpy(filetype, "text/plain");
 }  
 
-/*
- * serve_dynamic - run a CGI program on behalf of the client
- */
 void serve_dynamic(int fd, char *filename, char *cgiargs, char *method) {
     char buf[MAXLINE], *emptylist[] = { NULL };
 
-    /* Return first part of HTTP response */
+    // Client에게 보내는 Response Header
     sprintf(buf, "HTTP/1.0 200 OK\r\n"); 
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Server: Tiny Web Server\r\n");
     Rio_writen(fd, buf, strlen(buf));
   
-    if (Fork() == 0) { /* Child */ 
+    // 자식 프로세스를 생성 후 CGI 스크립트 실행
+    if(Fork() == 0){ 
+        // setenv를 통해서 Query String(파라미터) 와 HTTP Method 전달
 	    setenv("QUERY_STRING", cgiargs, 1);
 	    setenv("REQUEST_METHOD", method, 1);
-	    Dup2(fd, STDOUT_FILENO);
-	    Execve(filename, emptylist, environ);
+	    Dup2(fd, STDOUT_FILENO);    // 현재 소켓 연결중인 fd -> 자식 프로세스의 표준 출력으로 변경
+	    Execve(filename, emptylist, environ);    // CGI 스크립트 생성
     }
-    Wait(NULL);
+
+    Wait(NULL);    // 자식 프로세스 실행 종료 대기 후 자원 정리
 }
 
-/*
- * clienterror - returns an error message to the client
- */
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
     char buf[MAXLINE];
 
@@ -229,59 +220,11 @@ void echo(int connfd){
     size_t n;
     char buf[MAXLINE];
     rio_t rio;
+
     Rio_readinitb(&rio,connfd);
-    while((n=Rio_readlineb(&rio,buf,MAXLINE))!=0){
-        printf("server received %d bytes\n",(int)n);
-        Rio_writen(connfd,buf,n);
+
+    while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
+        printf("server received %d bytes\n", (int)n);
+        Rio_writen(connfd, buf, n);
     }
 }
-
-/*
-    ⚙︎ function   : memcpy(destination, source, size_t)
-    ⚙︎ Header     : <string.h>
-    ⚙︎ parameter  : - destination: 복사할 데이터가 위치할 메모리주소를 가르키는 포인터
-                   - source     : 복사할 데이터가 위치한 메모리주소를 가르키는 포인터
-                   - size_t     : 복사할 데이터의 길이 (Bytes)
-    ⚙︎ description: source에 있는 원본 데이터를 size_t만큼 복사해 destination 주소로 복사
-    ⚙︎ caution    : size_t 가 char* 인 경우에는 문자열의 끝을 알리는 "\0" 까지 복사해야 하기 때문에 길이 + 1을 해준다.
-                   desination과 source의 메모리 주소는 겹치면 안된다.
-
-    ⚙︎ Function    : strstr
-    ⚙︎ Arguments   : const char *haystack, const char *needle
-    ⚙︎ Return      : char *
-    ⚙︎ Description : 주어진 문자열에서 특정 부분 문자열의 위치를 찾는 함수
-                    - haystack: 검색 대상이 되는 문자열
-                    - needle  : 찾고자 하는 부분 문자열
-
-    ⚙︎ Function    : index
-    ⚙︎ Arguments   : const char *s, int c
-    ⚙︎ Return      : char *
-    ⚙︎ Description : 문자열에서 특정 문자의 첫 번째 등장 위치를 찾는 함수
-                    - s: 검색할 문자열
-                    - c: 검색할 문자
-
-    ⚙︎ Function    : strcasecmp
-    ⚙︎ Arguments   : const char *str1, const char *str2
-    ⚙︎ Return      : int
-    ⚙︎ Description : 문자열을 대소문자 구분 없이 비교하는 함수입니다.
-                    == 0: 동일한 문자
-                    > 0: str1이 사전적으로 뒤
-                    < 0: str1이 사전적으로 앞 
-
-    ⚙︎ Function    : stat
-    ⚙︎ Arguments   : const char *path, struct stat *buf
-    ⚙︎ Return      : int
-    ⚙︎ Description : 파일의 메타데이터(파일 크기, 소유자, 권한 등)를 가져오는 함수
-                    == 0 : 파일을 찾음
-                    == -1: 파일을 찾지 못함
-
-    ⚙︎ Function    : pthread_create
-    ⚙︎ Header      : <pthread.h>
-    ⚙︎ Arguments   : pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg
-    ⚙︎ Return      : int
-    ⚙︎ Description : 병렬로 실행할 코드 블록을 다른 스레드에서 실행
-                  - thread: 새로 생성된 스레드의 식별자를 저장할 포인터 (제어 및 추적)
-                  - attr: 스레드의 속성을 지정하는데 사용되는 pthread_attr_t 타입의 포인터 (NULL 허용)
-                  - start_routine: 새로운 스레드에서 실행할 함수를 가리키는 포인터로 스레드가 시작될 때 호출
-                  - arg: start_routine 함수에 전달될 인수를 가리키는 포인터
-*/

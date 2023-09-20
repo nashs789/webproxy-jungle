@@ -1,11 +1,3 @@
-/* $begin tinymain */
-/*
- * tiny.c - A simple, iterative HTTP/1.0 Web server that uses the 
- *     GET method to serve static and dynamic content.
- *
- * Updated 11/2019 droh 
- *   - Fixed sprintf() aliasing issue in serve_static(), and clienterror().
- */
 #include "csapp.h"
 
 void doit(int fd);
@@ -21,7 +13,7 @@ int main(int argc, char **argv) {
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
-
+    
     if(argc != 2){
 	    fprintf(stderr, "usage: %s <port>\n", argv[0]);
 	    exit(1);
@@ -55,8 +47,9 @@ void doit(int fd) {
         return;
     }
 
-    printf("%s", buf);
+    printf("buf = %s %s %s\n", method, uri, version);
     sscanf(buf, "%s %s %s", method, uri, version);
+    printf("buf = %s %s %s\n", method, uri, version);
     if(!(strcasecmp(method, "GET")==0||strcasecmp(method,"HEAD")==0)) {
         clienterror(fd, method, "501", "Not Implemented", "Tiny does not implement this method");
         return;
@@ -237,9 +230,11 @@ void echo(int connfd){
     size_t n;
     char buf[MAXLINE];
     rio_t rio;
+
     Rio_readinitb(&rio,connfd);
-    while((n=Rio_readlineb(&rio,buf,MAXLINE))!=0){
-        printf("server received %d bytes\n",(int)n);
-        Rio_writen(connfd,buf,n);
+
+    while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
+        printf("server received %d bytes\n", (int)n);
+        Rio_writen(connfd, buf, n);
     }
 }
